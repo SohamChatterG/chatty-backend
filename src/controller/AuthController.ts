@@ -29,7 +29,7 @@ class AuthController {
                 id: findUser.id
             }
             const token = jwt.sign(JWTPayload, process.env.JWT_SECRET, {
-                expiresIn: "36h"
+                expiresIn: "365d"
             })
             return response.json({
                 message: "logged in succesfully",
