@@ -45,7 +45,7 @@ model GroupUsers {
 }
 
 model Chats {
-  id         String    @id @default(uuid())
+  id         String    @id @default(uuid()) @db.Uuid
   group      ChatGroup @relation(fields: [group_id], references: [id], onDelete: Cascade)
   group_id   String    @db.Uuid
   message    String?

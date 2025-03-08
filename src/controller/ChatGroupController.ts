@@ -1,6 +1,5 @@
 import { Request, response, Response } from "express"
 import prisma from "../config/db.config.js";
-import { chatGroup } from "@prisma/client";
 
 class ChatGroupController {
     static async index(req: Request, res: Response) {
