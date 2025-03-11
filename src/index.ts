@@ -10,6 +10,8 @@ import { setupSocket } from "./socket.js";
 import { createAdapter } from "@socket.io/redis-streams-adapter";
 import redis from "./config/redis.config.js";
 import { instrument } from "@socket.io/admin-ui";
+import { connectKafkaProducer } from "./config/kafka.config.js";
+import { consumeMessages } from "./helper.js";
 
 
 const server = createServer(app);
@@ -40,6 +42,13 @@ app.get("/", (req: Request, res: Response) => {
   return res.send("It's working 🙌");
 });
 
+// connectKafkaProducer().catch((err) => {
+//   console.log('Something went wrong while connecting kafka ', err)
+// })
+
+// consumeMessages(process.env.KAFKA_TOPIC).catch(err => {
+//   console.log("the kafka consumer error is", err)
+// })
 
 app.use("/api", Routes);
 
