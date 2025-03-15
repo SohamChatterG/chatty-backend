@@ -9,6 +9,7 @@ class ChatsController {
                 group_id: groupId
             }
         })
+
         return res.json({ data: chats })
     }
 }

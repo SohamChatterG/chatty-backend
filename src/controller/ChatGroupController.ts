@@ -25,44 +25,42 @@ class ChatGroupController {
     }
     static async show(req: Request, res: Response) {
         try {
-            let { id } = req.params;
-
-            console.log("consoling the id", id)
-
-
+            const { id } = req.params;
             const user = req.user; // Get the authenticated user from req.user
 
-            const group = await prisma.chatGroup.findFirst({
+            const group = await prisma.chatGroup.findUnique({
                 where: {
                     id: id
                 }
             })
-            if (!group) {
-                return res.status(404).json({ message: "Chat Group not found" });
-            }
+            console.log('conosling the group', group)
+            // if (!group) {
+            //     return res.status(404).json({ message: "Chat Group not found" });
+            // }
 
-            // Public groups can be accessed by anyone
-            if (group.is_public) {
-                return res.json({ message: "Chat Group Fetched Successfully!", data: group });
-            } else {
-                // Authorization check for private groups: Is the user a member?
-                const isMember = await prisma.groupUsers.findFirst({
-                    where: {
-                        group_id: group.id,
-                        group: {
-                            user_id: user.id // Corrected: Check user_id in ChatGroup
-                        }
-                    },
-                });
+            // // Public groups can be accessed by anyone
+            // if (group.is_public) {
+            //     return res.json({ message: "Chat Group Fetched Successfully!", data: group });
+            // } else {
+            //     // Authorization check for private groups: Is the user a member?
+            //     const isMember = await prisma.groupUsers.findFirst({
+            //         where: {
+            //             group_id: group.id,
+            //             group: {
+            //                 user_id: user.id // Corrected: Check user_id in ChatGroup
+            //             }
+            //         },
+            //     });
 
-                if (isMember) {
-                    return res.json({ message: "Chat Group Fetched Successfully!", data: group });
-                } else {
-                    return res
-                        .status(403)
-                        .json({ message: "Unauthorized to access this private group" });
-                }
-            }
+            //     if (isMember) {
+            //         return res.json({ message: "Chat Group Fetched Successfully!", data: group });
+            //     } else {
+            //         return res
+            //             .status(403)
+            //             .json({ message: "Unauthorized to access this private group" });
+            //     }
+            // }
+            return res.json({ data: group })
         } catch (error) {
             console.error("Error fetching chat group:", error);
             return response.status(500).json({
@@ -76,7 +74,7 @@ class ChatGroupController {
             const user = req.user;
             const isPublic = body.is_public; // Get is_public from body
             const passcode = isPublic ? null : body.passcode; // Conditionally set passcode
-            console.log("Consoling user", user)
+
             const newGroup = await prisma.chatGroup.create({
                 data: {
                     title: body.title,
