@@ -26,6 +26,7 @@ class ChatGroupUserController {
         try {
 
             const body = req.body;
+            console.log("body", body)
             const user = await prisma.groupUsers.create({
                 data: body
             });

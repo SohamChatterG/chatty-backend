@@ -45,7 +45,8 @@ export function setupSocket(io: Server) {
         }
         activeUsers[socket.room].push(socket.user);
         socket.on("message", async (data) => {
-            console.log(data)
+            console.log("on message data", data)
+            console.log("on message socket", socket)
             // -------------
             await prisma.chats.create({
                 data: data
@@ -60,11 +61,12 @@ export function setupSocket(io: Server) {
         });
 
         socket.on("typing", (user) => {
+            console.log("is typing user", user)
             if (!typingUsers[socket.room]) {
-                typingUsers[socket.room] = {}; // Initialize as an empty object
+                typingUsers[socket.room] = {};
             }
-            typingUsers[socket.room][user.id] = user.name; // Store the name using user ID as key
-            io.to(socket.room).emit("typing", Object.values(typingUsers[socket.room])); // Emit an array of names
+            typingUsers[socket.room][user.id] = user.name;
+            io.to(socket.room).emit("typing", user.name); // Emit a single name
         });
 
         socket.on("stopTyping", (user) => {
