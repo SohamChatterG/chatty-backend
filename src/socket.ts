@@ -6,8 +6,8 @@ import { produceMessage } from "./helper.js";
 interface CustomSocket extends Socket {
     room?: string;
     user?: {
-        id: string; // Add user ID
-        name: string; // Add user name
+        id: string;
+        name: string;
     };
 }
 
@@ -52,7 +52,7 @@ export function setupSocket(io: Server) {
                 data: data
             })
             // --------------
-            // await produceMessage(process.env.KAFKA_TOPIC,data)
+            // await produceMessage(process.env.KAFKA_TOPIC, data)
             socket.to(socket.room).emit("message", data)
         })
         socket.on("getUsers", () => {

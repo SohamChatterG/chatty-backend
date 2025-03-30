@@ -36,11 +36,15 @@ model ChatGroup {
 }
 
 model GroupUsers {
-  id         Int       @id @default(autoincrement())
-  group      ChatGroup @relation(fields: [group_id], references: [id], onDelete: Cascade)
-  group_id   String    @db.Uuid
-  name       String
-  created_at DateTime  @default(now())
+  id       Int       @id @default(autoincrement())
+  group    ChatGroup @relation(fields: [group_id], references: [id], onDelete: Cascade)
+  group_id String    @db.Uuid
+  name     String
+  user_id  Int       @default(0) // default admin
+
+  is_admin Boolean @default(false)
+
+  created_at DateTime @default(now())
 
   @@map("group_users")
 }
