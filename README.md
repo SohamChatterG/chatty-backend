@@ -74,7 +74,7 @@ To start the server in development mode, run:
 npm run dev
 ```
 
-The server will be available at `http://localhost:PORT` (default `PORT` is `3000`).
+The server will be available at `http://localhost:PORT` (default `PORT` is `8000`).
 
 ---
 
