@@ -40,7 +40,7 @@ model GroupUsers {
   group    ChatGroup @relation(fields: [group_id], references: [id], onDelete: Cascade)
   group_id String    @db.Uuid
   name     String
-  user_id  Int       @default(0) // default admin
+  user_id  Int? // default admin
 
   is_admin Boolean @default(false)
 

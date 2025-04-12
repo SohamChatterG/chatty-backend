@@ -18,9 +18,8 @@ router.put("/chat-group/:id", authMiddleware, ChatGroupController.update)
 router.delete("/chat-group/:id", authMiddleware, ChatGroupController.destroy)
 
 // chat group users 
-
 router.get("/chat-group-users", ChatGroupUserController.index);
-router.post("/chat-group-users", ChatGroupUserController.store);
+router.post("/chat-group-users", authMiddleware, ChatGroupUserController.store);
 router.post("/chat-group-users/make-admin", ChatGroupUserController.updateAdminStatus);
 router.delete("/chat-group-users/remove-user", ChatGroupUserController.removeUser);
 

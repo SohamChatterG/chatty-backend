@@ -24,6 +24,7 @@ class ChatGroupUserController {
     }
     static async store(req: Request, res: Response) {
         try {
+            console.log("request initiated")
             const { name, group_id, user_id } = req.body;
 
             // Get the group details
@@ -32,9 +33,11 @@ class ChatGroupUserController {
             });
 
             if (!group) {
+                console.log("no group")
                 return res.status(404).json({ message: "Group not found" });
             }
-
+            console.log("group user_id", group.user_id);
+            console.log("req user id", req.user?.id)
             // Check if the user is the group creator
             const isCreator = group.user_id === req.user?.id; // Assuming `req.user` contains logged-in user info
 
@@ -42,7 +45,7 @@ class ChatGroupUserController {
                 data: {
                     name,
                     group_id,
-                    user_id: user_id,
+                    user_id: Number(user_id),
                     is_admin: isCreator,
                 },
             });
@@ -51,31 +54,49 @@ class ChatGroupUserController {
 
             return res.json({ message: "User added successfully", data: user });
         } catch (error) {
+            console.log("error occured", error)
             return res.status(500).json({ message: "Something went wrong, please try again" });
         }
     }
     static async updateAdminStatus(req: Request, res: Response) {
         try {
-            const { group_id, user_id, is_admin } = req.body;
+            const { groupId, targetId, is_admin } = req.body;
+            const adminId = req.user?.id;
 
-            // Check if the request sender is an admin
-            const admin = await prisma.groupUsers.findFirst({
-                where: { group_id, user_id: req.user?.id, is_admin: true },
+            // Step 1: Check if the requesting user is an admin
+            const requestingUser = await prisma.groupUsers.findFirst({
+                where: {
+                    group_id: groupId,
+                    user_id: adminId,
+                    is_admin: true,
+                },
             });
 
-            if (!admin) {
+            if (!requestingUser) {
                 return res.status(403).json({ message: "Only admins can modify roles" });
             }
 
-            // Update the user role
+
+
+            // Step 3: Update the target user's admin status
             await prisma.groupUsers.updateMany({
-                where: { group_id, user_id },
-                data: { is_admin },
+                where: {
+                    group_id: groupId,
+                    user_id: targetId,
+                },
+                data: {
+                    is_admin,
+                },
             });
 
-            return res.json({ message: `User ${is_admin ? "promoted" : "demoted"} successfully` });
+            return res.json({
+                message: `User ${is_admin ? "promoted to admin" : "demoted from admin"} successfully`,
+            });
         } catch (error) {
-            return res.status(500).json({ message: "Something went wrong, please try again" });
+            console.error("Error updating admin status:", error);
+            return res.status(500).json({
+                message: "Something went wrong, please try again",
+            });
         }
     }
 
