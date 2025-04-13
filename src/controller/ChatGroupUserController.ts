@@ -1,10 +1,10 @@
 import { Request, Response } from "express"
 import prisma from "../config/db.config.js";
-
-interface GroupUserType {
-    name: string,
-    group_id: string
-}
+import { Prisma } from "@prisma/client";
+// interface GroupUserType {
+//     name: string,
+//     group_id: string
+// }
 class ChatGroupUserController {
     static async index(req: Request, res: Response) {
         try {
@@ -27,7 +27,6 @@ class ChatGroupUserController {
             console.log("request initiated")
             const { name, group_id, user_id } = req.body;
 
-            // Get the group details
             const group = await prisma.chatGroup.findUnique({
                 where: { id: group_id },
             });
@@ -63,7 +62,6 @@ class ChatGroupUserController {
             const { groupId, targetId, is_admin, adminId } = req.body;
             // const adminId = req.user?.id;
 
-            // Step 1: Check if the requesting user is an admin
             const requestingUser = await prisma.groupUsers.findFirst({
                 where: {
                     group_id: groupId,
@@ -75,7 +73,6 @@ class ChatGroupUserController {
             if (!requestingUser) {
                 return res.status(403).json({ message: "Only admins can modify roles" });
             }
-            // Step 3: Update the target user's admin status
 
             const count = await prisma.groupUsers.updateMany({
                 where: {
@@ -99,35 +96,98 @@ class ChatGroupUserController {
         }
     }
 
+
     static async removeUser(req: Request, res: Response) {
         try {
-            console.log("removing user")
-            let { group_id, user_id } = req.body;
-            user_id = Number(user_id);
-            console.log("consoling the user_id", user_id)
-            // Check if the request sender is an admin
-            const admin = await prisma.groupUsers.findFirst({
-                where: { group_id, user_id: req.user?.id, is_admin: true },
-            });
+            const { group_id, targetId, requestedById } = req.body;
+            console.log(group_id, "target", targetId, " requestedB", requestedById);
 
-            if (!admin) {
-                console.log("\n u r not admin\n")
-                return res.status(403).json({ message: "Only admins can remove users" });
+            if (!group_id || !targetId || !requestedById) {
+                console.log("missing parameters");
+                return res.status(400).json({
+                    message: "Missing required parameters: group_id, targetId, or requestedById"
+                });
             }
 
-            // Remove the user from the group
-            await prisma.groupUsers.deleteMany({
-                where: { group_id, id: user_id },
+            // Convert IDs to numbers for consistency
+            const numericTargetId = Number(targetId);
+            const numericRequestedById = Number(requestedById);
+
+            if (numericRequestedById !== req.user?.id) {
+                console.log("request doesn't match auth user");
+                return res.status(403).json({
+                    message: "You can only make requests on your own behalf"
+                });
+            }
+
+            const requesterRecord = await prisma.groupUsers.findFirst({
+                where: {
+                    group_id,
+                    user_id: numericRequestedById
+                },
             });
 
-            return res.json({ message: "User removed successfully" });
+            if (!requesterRecord) {
+                console.log("requester not in group");
+                return res.status(403).json({
+                    message: "You are not a member of this group"
+                });
+            }
+
+            const targetRecord = await prisma.groupUsers.findFirst({
+                where: {
+                    group_id,
+                    id: numericTargetId
+                },
+            });
+
+            if (!targetRecord) {
+                console.log("target user not found");
+                return res.status(404).json({
+                    message: "User not found in this group"
+                });
+            }
+
+            const isSelfRemoval = targetRecord.user_id === requesterRecord.user_id;
+            console.log("isSelfRemoval", isSelfRemoval);
+
+            if (!isSelfRemoval) {
+                if (!requesterRecord.is_admin) {
+                    console.log("requester is not admin");
+                    return res.status(403).json({
+                        message: "Only admins can remove other users"
+                    });
+                }
+            }
+
+            await prisma.groupUsers.delete({
+                where: {
+                    id: targetRecord.id
+                }
+            });
+
+            return res.json({
+                success: true,
+                isSelfRemoval,
+                message: isSelfRemoval
+                    ? "You have left the group successfully"
+                    : "User removed successfully"
+            });
+
         } catch (error) {
-            console.log(error)
-            return res.status(500).json({ message: "Something went wrong, please try again" });
+            console.error("Error in removeUser:", error);
+
+            if (error instanceof Prisma.PrismaClientKnownRequestError) {
+                return res.status(500).json({
+                    message: "Database error occurred while removing user"
+                });
+            }
+
+            return res.status(500).json({
+                message: "Something went wrong, please try again"
+            });
         }
     }
-
-
 }
 
 export default ChatGroupUserController
