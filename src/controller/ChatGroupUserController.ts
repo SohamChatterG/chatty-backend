@@ -60,14 +60,14 @@ class ChatGroupUserController {
     }
     static async updateAdminStatus(req: Request, res: Response) {
         try {
-            const { groupId, targetId, is_admin } = req.body;
-            const adminId = req.user?.id;
+            const { groupId, targetId, is_admin, adminId } = req.body;
+            // const adminId = req.user?.id;
 
             // Step 1: Check if the requesting user is an admin
             const requestingUser = await prisma.groupUsers.findFirst({
                 where: {
                     group_id: groupId,
-                    user_id: adminId,
+                    user_id: Number(adminId),
                     is_admin: true,
                 },
             });
@@ -75,22 +75,21 @@ class ChatGroupUserController {
             if (!requestingUser) {
                 return res.status(403).json({ message: "Only admins can modify roles" });
             }
-
-
-
             // Step 3: Update the target user's admin status
-            await prisma.groupUsers.updateMany({
+
+            const count = await prisma.groupUsers.updateMany({
                 where: {
                     group_id: groupId,
-                    user_id: targetId,
+                    id: Number(targetId),
                 },
                 data: {
-                    is_admin,
+                    is_admin: !is_admin,
                 },
             });
+            console.log("count", count)
 
             return res.json({
-                message: `User ${is_admin ? "promoted to admin" : "demoted from admin"} successfully`,
+                message: `User ${!is_admin ? "promoted to admin" : "demoted from admin"} successfully`,
             });
         } catch (error) {
             console.error("Error updating admin status:", error);
