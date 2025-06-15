@@ -17,6 +17,7 @@ const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
 
         }
         req.user = user as AuthUser;
+        
         next()
     })
 }

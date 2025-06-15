@@ -14,7 +14,7 @@ interface CustomSocket extends Socket {
 export function setupSocket(io: Server) {
     const activeUsers: { [roomId: string]: { id: string; name: string; }[] } = {};
     const typingUsers: { [roomId: string]: { [userId: string]: string } } = {};
-    io.use((socket: CustomSocket, next) => {
+    io.use((socket: CustomSocket, next) => { // middleware for websocket
         const room = socket.handshake.auth.room || socket.handshake.headers.room;
         if (!room) {
             return next(new Error("Invalid room. Please pass correct room id!"))

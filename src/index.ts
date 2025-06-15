@@ -53,7 +53,6 @@ app.get("/", (req: Request, res: Response) => {
 app.use("/api", Routes);
 
 
-
 server.listen(PORT, () => console.log(`Server is running on PORT ${PORT}`));
 setupSocket(io)
 export { io }

@@ -34,32 +34,6 @@ class ChatGroupController {
                 }
             })
             console.log('conosling the group', group)
-            // if (!group) {
-            //     return res.status(404).json({ message: "Chat Group not found" });
-            // }
-
-            // // Public groups can be accessed by anyone
-            // if (group.is_public) {
-            //     return res.json({ message: "Chat Group Fetched Successfully!", data: group });
-            // } else {
-            //     // Authorization check for private groups: Is the user a member?
-            //     const isMember = await prisma.groupUsers.findFirst({
-            //         where: {
-            //             group_id: group.id,
-            //             group: {
-            //                 user_id: user.id // Corrected: Check user_id in ChatGroup
-            //             }
-            //         },
-            //     });
-
-            //     if (isMember) {
-            //         return res.json({ message: "Chat Group Fetched Successfully!", data: group });
-            //     } else {
-            //         return res
-            //             .status(403)
-            //             .json({ message: "Unauthorized to access this private group" });
-            //     }
-            // }
             return res.json({ data: group })
         } catch (error) {
             console.error("Error fetching chat group:", error);
