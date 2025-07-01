@@ -20,7 +20,7 @@ const io = new Server(server, {
     origin: ["http://localhost:3000", "https://admin.socket.io"],
     credentials: true
   },
-  adapter: createAdapter(redis)
+  adapter: createAdapter(redis) // **** Read the note at the bottom
 });
 
 instrument(io, {
@@ -56,3 +56,22 @@ app.use("/api", Routes);
 server.listen(PORT, () => console.log(`Server is running on PORT ${PORT}`));
 setupSocket(io)
 export { io }
+
+// ****
+// Redis Stream and Redis Streams Adapter are two completely different things:
+
+// ✅ Redis Stream is a Redis data structure (like List, Set, Hash, etc.)
+// - It's designed for high-throughput, append-only log storage.
+// - Producers can rapidly add data to the stream.
+// - Consumers (or consumer groups) can read, analyze, and process this data asynchronously.
+// - Common use cases: logging, analytics, job queues, event sourcing.
+
+// ✅ Redis Streams Adapter is a Socket.IO adapter for horizontal scaling.
+// - In a horizontally scaled system, different users may be connected to different server instances.
+// - By default, socket.broadcast.emit only emits to sockets connected to the **same** instance.
+// - The Redis Streams Adapter allows instances to **communicate with each other** through Redis Streams under the hood.
+// - It ensures events are broadcast across all connected clients — no matter which instance they’re on.
+
+// 💡 TL;DR:
+// - Redis Stream = a **data structure** used for **event/message queues**.
+// - Redis Streams Adapter = a **Socket.IO scaling solution** that **uses Redis Streams internally**.
