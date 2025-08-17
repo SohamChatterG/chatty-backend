@@ -39,16 +39,16 @@ import { Kafka, logLevel } from "kafkajs";
 // We no longer need 'fs', 'path', or 'url' because we are not reading files.
 
 // Best practice: Check that all necessary environment variables are present before starting.
-if (
-    !process.env.KAFKA_BROKER ||
-    !process.env.KAFKA_CA_CERT ||
-    !process.env.KAFKA_ACCESS_KEY ||
-    !process.env.KAFKA_ACCESS_CERT ||
-    !process.env.KAFKA_USERNAME ||
-    !process.env.KAFKA_PASSWORD
-) {
-    throw new Error("One or more Kafka environment variables are not set.");
-}
+// if (
+//     !process.env.KAFKA_BROKER ||
+//     !process.env.KAFKA_CA_CERT ||
+//     !process.env.KAFKA_ACCESS_KEY ||
+//     !process.env.KAFKA_ACCESS_CERT ||
+//     !process.env.KAFKA_USERNAME ||
+//     !process.env.KAFKA_PASSWORD
+// ) {
+//     throw new Error("One or more Kafka environment variables are not set.");
+// }
 
 export const kafka = new Kafka({
     brokers: [process.env.KAFKA_BROKER],
