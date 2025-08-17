@@ -13,7 +13,6 @@ import { instrument } from "@socket.io/admin-ui";
 import { connectKafkaProducer } from "./config/kafka.config.js";
 import { consumeMessages } from "./helper.js";
 
-
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
@@ -35,20 +34,21 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+app.use(express.urlencoded({ extended: false })); // Express sees the Content - Type: application / x - www - form - urlencoded. It runs express.urlencoded() middleware. The form body is parsed into req.body.
+
 
 
 app.get("/", (req: Request, res: Response) => {
   return res.send("It's working 🙌");
 });
 
-// connectKafkaProducer().catch((err) => {
-//   console.log('Something went wrong while connecting kafka ', err)
-// })
+connectKafkaProducer().catch((err) => {
+  console.log('Something went wrong while connecting kafka ', err)
+});
 
-// consumeMessages(process.env.KAFKA_TOPIC).catch(err => {
-//   console.log("the kafka consumer error is", err)
-// })
+consumeMessages(process.env.KAFKA_TOPIC).catch(err => {
+  console.log("the kafka consumer error is", err)
+});
 
 app.use("/api", Routes);
 
@@ -75,3 +75,8 @@ export { io }
 // 💡 TL;DR:
 // - Redis Stream = a **data structure** used for **event/message queues**.
 // - Redis Streams Adapter = a **Socket.IO scaling solution** that **uses Redis Streams internally**.
+
+
+// Redis Streams (used by the Socket.IO adapter) is focused on fast, real-time message broadcasting and pub/sub specifically between Socket.IO server instances. It's about efficiently notifying all parts of the real-time system to deliver messages to users. They complement each other by handling different aspects of the message lifecycle.
+
+
