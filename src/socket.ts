@@ -48,11 +48,11 @@ export function setupSocket(io: Server) {
             console.log("on message data", data)
             console.log("on message socket", socket)
             // -------------
-            // await prisma.chats.create({
-            //     data: data
-            // })
+            await prisma.chats.create({
+                data: data
+            })
             // --------------
-            await produceMessage(process.env.KAFKA_TOPIC, data)
+            // await produceMessage(process.env.KAFKA_TOPIC, data)
             // -------------------
             socket.to(socket.room).emit("message", data)
         })

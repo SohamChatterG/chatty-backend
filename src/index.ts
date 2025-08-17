@@ -42,13 +42,13 @@ app.get("/", (req: Request, res: Response) => {
   return res.send("It's working 🙌");
 });
 
-connectKafkaProducer().catch((err) => {
-  console.log('Something went wrong while connecting kafka ', err)
-});
+// connectKafkaProducer().catch((err) => {
+//   console.log('Something went wrong while connecting kafka ', err)
+// });
 
-consumeMessages(process.env.KAFKA_TOPIC).catch(err => {
-  console.log("the kafka consumer error is", err)
-});
+// consumeMessages(process.env.KAFKA_TOPIC).catch(err => {
+//   console.log("the kafka consumer error is", err)
+// });
 
 app.use("/api", Routes);
 
