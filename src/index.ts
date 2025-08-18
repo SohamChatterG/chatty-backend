@@ -16,7 +16,7 @@ import { consumeMessages } from "./helper.js";
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: ["http://localhost:3000", "https://admin.socket.io", "https://chatty-frontend-ymzc-emh9qp0fd-sohams-projects-dab0f95b.vercel.app", "https://chatty-frontend-ymzc.vercel.app/"],
+    origin: ["http://localhost:3000", "https://admin.socket.io", "https://chatty-frontend-ymzc-emh9qp0fd-sohams-projects-dab0f95b.vercel.app", "https://chatty-frontend-ymzc.vercel.app"],
     credentials: true
   },
   adapter: createAdapter(redis) // **** Read the note at the bottom
