@@ -2,7 +2,7 @@ import express, { Application, Request, Response } from "express";
 import "dotenv/config";
 import cors from "cors";
 const app: Application = express();
-const PORT = process.env.PORT || 7000;
+const PORT = 8080;
 import Routes from "./routes/index.js"
 import { Server } from "socket.io"
 import { createServer } from "http"
@@ -16,7 +16,8 @@ import { consumeMessages } from "./helper.js";
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: ["http://localhost:3000", "https://admin.socket.io", "https://chatty-frontend-ymzc-emh9qp0fd-sohams-projects-dab0f95b.vercel.app", "https://chatty-frontend-ymzc.vercel.app/"],
+    origin: ["http://localhost:3000", "https://admin.socket.io"],
+    methods: ["GET", "POST"],
     credentials: true
   },
   adapter: createAdapter(redis) // **** Read the note at the bottom
@@ -30,11 +31,12 @@ instrument(io, {
 // * Middleware
 
 app.use(cors({
-  origin: '*',
+  origin: ['http://localhost:3000'],
   credentials: true
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false })); // Express sees the Content - Type: application / x - www - form - urlencoded. It runs express.urlencoded() middleware. The form body is parsed into req.body.
+app.use("/uploads", express.static("uploads")); // Serve uploaded files
 
 
 

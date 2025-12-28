@@ -7,13 +7,16 @@ interface CustomSocket extends Socket {
     room?: string;
     user?: {
         id: string;
+        user_id?: string;
         name: string;
     };
 }
 
 export function setupSocket(io: Server) {
-    const activeUsers: { [roomId: string]: { id: string; name: string; }[] } = {};
+    const activeUsers: { [roomId: string]: { id: string; user_id?: string; name: string; }[] } = {};
     const typingUsers: { [roomId: string]: { [userId: string]: string } } = {};
+    const onlineUsers: Map<string, { socketId: string; name: string }> = new Map();
+
     io.use((socket: CustomSocket, next) => { // middleware for websocket
         const room = socket.handshake.auth.room || socket.handshake.headers.room;
         if (!room) {
@@ -27,6 +30,7 @@ export function setupSocket(io: Server) {
         } else {
             socket.user = {
                 id: user.id || socket.id,
+                user_id: user.user_id ? String(user.user_id) : undefined,
                 name: user.name || "Guest-" + socket.id.slice(0, 5)
             };
         }
@@ -34,35 +38,383 @@ export function setupSocket(io: Server) {
     })
 
 
-    io.on("connection", (socket: CustomSocket) => {
+    io.on("connection", async (socket: CustomSocket) => {
         // join the room
-        socket.join(socket.room)
-
+        socket.join(socket.room);
 
         console.log("The socket connected..", socket.id);
         if (!activeUsers[socket.room]) {
             activeUsers[socket.room] = [];
         }
         activeUsers[socket.room].push(socket.user);
+
+        // Track online status
+        onlineUsers.set(socket.user.id, { socketId: socket.id, name: socket.user.name });
+
+        // Broadcast updated active users list to ALL users in the room
+        io.to(socket.room).emit("activeUsers", activeUsers[socket.room]);
+
+        // Update user online status in database if user_id is numeric and user exists
+        const numericUserId = socket.user.user_id ? parseInt(socket.user.user_id) : parseInt(socket.user.id);
+        if (!isNaN(numericUserId)) {
+            try {
+                // Use updateMany to avoid errors when user doesn't exist
+                await prisma.user.updateMany({
+                    where: { id: numericUserId },
+                    data: { is_online: true },
+                });
+            } catch (err) {
+                // Silently ignore - user might be a guest
+            }
+        }
+
+        // Broadcast online status to room
+        io.to(socket.room).emit("userOnline", { userId: socket.user.id, name: socket.user.name });
+
+        // Helper function to check if user is a valid group member
+        const isValidGroupMember = async (groupId: string, userName: string, userId?: number): Promise<{ valid: boolean; reason?: string }> => {
+            try {
+                // Check if user is a member of the group
+                const member = await prisma.groupUsers.findFirst({
+                    where: {
+                        group_id: groupId,
+                        OR: [
+                            { name: userName },
+                            ...(userId ? [{ user_id: userId }] : [])
+                        ]
+                    }
+                });
+
+                if (!member) {
+                    return { valid: false, reason: "You are not a member of this group" };
+                }
+
+                if (member.is_banned) {
+                    return { valid: false, reason: "You have been banned from this group" };
+                }
+
+                if (member.is_muted) {
+                    return { valid: false, reason: "You have been muted in this group" };
+                }
+
+                return { valid: true };
+            } catch (error) {
+                console.error("Error checking group membership:", error);
+                return { valid: false, reason: "Error verifying membership" };
+            }
+        };
+
+        // Message event
         socket.on("message", async (data) => {
-            console.log("on message data", data)
-            console.log("on message socket", socket)
-            // -------------
-            await prisma.chats.create({
-                data: data
-            })
-            // --------------
-            // await produceMessage(process.env.KAFKA_TOPIC, data)
-            // -------------------
-            socket.to(socket.room).emit("message", data)
-        })
+            console.log("on message data", data);
+            // Extract user_id and is_encrypted from data
+            const { user_id, is_encrypted, ...chatData } = data;
+
+            // Check if user is still a valid member of the group
+            const numericUserId = user_id ? parseInt(user_id) : undefined;
+            const memberCheck = await isValidGroupMember(socket.room, socket.user.name, numericUserId);
+
+            if (!memberCheck.valid) {
+                socket.emit("error", { message: memberCheck.reason });
+                return;
+            }
+
+            try {
+                const createdMessage = await prisma.chats.create({
+                    data: {
+                        ...chatData,
+                        is_encrypted: is_encrypted || false,
+                    },
+                });
+                // await produceMessage(process.env.KAFKA_TOPIC, data)
+                // Include user_id and is_encrypted in the emitted message for client-side reference
+                socket.to(socket.room).emit("message", { ...data, id: createdMessage.id, is_encrypted });
+            } catch (error) {
+                console.error("Error creating message:", error);
+                socket.emit("error", { message: "Failed to save message" });
+            }
+        });
+
+        // Edit message event
+        socket.on("editMessage", async (data) => {
+            const { id, message, name, user_id } = data;
+
+            // Check membership
+            const numericUserId = user_id ? parseInt(user_id) : undefined;
+            const memberCheck = await isValidGroupMember(socket.room, socket.user.name, numericUserId);
+            if (!memberCheck.valid) {
+                socket.emit("error", { message: memberCheck.reason });
+                return;
+            }
+
+            try {
+                const updatedMessage = await prisma.chats.update({
+                    where: { id },
+                    data: {
+                        message,
+                        edited_at: new Date(),
+                    },
+                    include: {
+                        MessageReactions: true,
+                    },
+                });
+                io.to(socket.room).emit("messageEdited", updatedMessage);
+            } catch (error) {
+                console.error("Error editing message:", error);
+            }
+        });
+
+        // Delete message event
+        socket.on("deleteMessage", async (data) => {
+            const { id, user_id } = data;
+
+            // Check membership
+            const numericUserId = user_id ? parseInt(user_id) : undefined;
+            const memberCheck = await isValidGroupMember(socket.room, socket.user.name, numericUserId);
+            if (!memberCheck.valid) {
+                socket.emit("error", { message: memberCheck.reason });
+                return;
+            }
+
+            try {
+                await prisma.chats.update({
+                    where: { id },
+                    data: {
+                        deleted_at: new Date(),
+                        message: null,
+                    },
+                });
+                io.to(socket.room).emit("messageDeleted", { id });
+            } catch (error) {
+                console.error("Error deleting message:", error);
+            }
+        });
+
+        // Reaction event
+        socket.on("addReaction", async (data) => {
+            const { message_id, emoji, user_name, user_id } = data;
+
+            // Check membership
+            const numericUserId = user_id ? parseInt(user_id) : undefined;
+            const memberCheck = await isValidGroupMember(socket.room, socket.user.name, numericUserId);
+            if (!memberCheck.valid) {
+                socket.emit("error", { message: memberCheck.reason });
+                return;
+            }
+
+            try {
+                await prisma.messageReactions.upsert({
+                    where: {
+                        message_id_user_name_emoji: {
+                            message_id,
+                            user_name,
+                            emoji,
+                        },
+                    },
+                    update: {},
+                    create: {
+                        message_id,
+                        user_name,
+                        user_id: user_id || null,
+                        emoji,
+                    },
+                });
+                io.to(socket.room).emit("reactionAdded", data);
+            } catch (error) {
+                console.error("Error adding reaction:", error);
+            }
+        });
+
+        // Remove reaction event
+        socket.on("removeReaction", async (data) => {
+            const { message_id, emoji, user_name } = data;
+            try {
+                await prisma.messageReactions.delete({
+                    where: {
+                        message_id_user_name_emoji: {
+                            message_id,
+                            user_name,
+                            emoji,
+                        },
+                    },
+                });
+                io.to(socket.room).emit("reactionRemoved", data);
+            } catch (error) {
+                console.error("Error removing reaction:", error);
+            }
+        });
+
+        // Read receipt event
+        socket.on("markAsRead", async (data) => {
+            const { messageIds, userId, userName } = data;
+            try {
+                // Create read receipts for all messages
+                const readReceipts = messageIds.map((messageId: string) => ({
+                    message_id: messageId,
+                    user_id: userId ? Number(userId) : null,
+                    user_name: userName,
+                }));
+
+                await prisma.messageRead.createMany({
+                    data: readReceipts,
+                    skipDuplicates: true,
+                });
+
+                // Broadcast read receipts to the room
+                io.to(socket.room).emit("messagesRead", {
+                    messageIds,
+                    userId,
+                    userName,
+                    readAt: new Date(),
+                });
+            } catch (error) {
+                console.error("Error marking messages as read:", error);
+            }
+        });
+
+        // Pin message event
+        socket.on("pinMessage", async (data) => {
+            const { messageId, userId, userName, groupId } = data;
+
+            // Check membership
+            const numericUserId = userId ? parseInt(userId) : undefined;
+            const memberCheck = await isValidGroupMember(socket.room, socket.user.name, numericUserId);
+            if (!memberCheck.valid) {
+                socket.emit("error", { message: memberCheck.reason });
+                return;
+            }
+
+            try {
+                const pinnedMessage = await prisma.pinnedMessage.create({
+                    data: {
+                        message_id: messageId,
+                        group_id: groupId || socket.room,
+                        pinned_by: userName,
+                    },
+                    include: {
+                        message: true,
+                    },
+                });
+
+                io.to(socket.room).emit("messagePinned", pinnedMessage);
+            } catch (error) {
+                console.error("Error pinning message:", error);
+            }
+        });
+
+        // Unpin message event
+        socket.on("unpinMessage", async (data) => {
+            const { messageId } = data;
+            try {
+                await prisma.pinnedMessage.deleteMany({
+                    where: { message_id: messageId },
+                });
+
+                io.to(socket.room).emit("messageUnpinned", { messageId });
+            } catch (error) {
+                console.error("Error unpinning message:", error);
+            }
+        });
+
+        // Forward message event
+        socket.on("forwardMessage", async (data) => {
+            const { originalMessageId, targetGroupId, userId, userName } = data;
+
+            // Check membership in target group
+            const numericUserId = userId ? parseInt(userId) : undefined;
+            const memberCheck = await isValidGroupMember(targetGroupId, userName, numericUserId);
+            if (!memberCheck.valid) {
+                socket.emit("error", { message: "You are not a member of the target group" });
+                return;
+            }
+
+            try {
+                // Get original message
+                const originalMessage = await prisma.chats.findUnique({
+                    where: { id: originalMessageId },
+                });
+
+                if (!originalMessage) {
+                    socket.emit("error", { message: "Original message not found" });
+                    return;
+                }
+
+                // Create forwarded message
+                const forwardedMessage = await prisma.chats.create({
+                    data: {
+                        group_id: targetGroupId,
+                        message: originalMessage.message,
+                        name: userName,
+                        file: originalMessage.file,
+                        file_type: originalMessage.file_type,
+                        file_size: originalMessage.file_size,
+                        forwarded_from: originalMessageId,
+                    },
+                });
+
+                // Emit to target group
+                io.to(targetGroupId).emit("message", forwardedMessage);
+
+                // Confirm to sender
+                socket.emit("messageForwarded", {
+                    originalMessageId,
+                    targetGroupId,
+                    newMessageId: forwardedMessage.id
+                });
+            } catch (error) {
+                console.error("Error forwarding message:", error);
+            }
+        });
+
+        // Mention notification event
+        socket.on("mentionUser", (data) => {
+            const { mentionedUserIds, messageId, senderName } = data;
+
+            // Notify each mentioned user
+            mentionedUserIds.forEach((userId: string) => {
+                const userSocket = onlineUsers.get(userId);
+                if (userSocket) {
+                    io.to(userSocket.socketId).emit("mentioned", {
+                        messageId,
+                        groupId: socket.room,
+                        senderName,
+                    });
+                }
+            });
+        });
+
         socket.on("getUsers", () => {
-            console.log(activeUsers)
+            console.log(activeUsers);
             socket.emit("activeUsers", activeUsers[socket.room]);
         });
 
+        // Get online users in room
+        socket.on("getOnlineUsers", () => {
+            const roomUsers = activeUsers[socket.room] || [];
+            const onlineInRoom = roomUsers.filter(user => onlineUsers.has(user.id));
+            socket.emit("onlineUsers", onlineInRoom);
+        });
+
+        // Listen for user removal/ban events and kick them from the room
+        socket.on("kickUser", (data) => {
+            const { userId, userName, reason } = data;
+
+            // Find the socket of the user to kick
+            const userSocket = onlineUsers.get(userId);
+            if (userSocket) {
+                // Emit kick event to the specific user
+                io.to(userSocket.socketId).emit("kicked", {
+                    reason: reason || "You have been removed from this group",
+                    groupId: socket.room
+                });
+            }
+
+            // Also broadcast to room that user was removed
+            io.to(socket.room).emit("userRemoved", { userId, userName, reason });
+        });
+
         socket.on("typing", (user) => {
-            console.log("is typing user", user)
+            console.log("is typing user", user);
             if (!typingUsers[socket.room]) {
                 typingUsers[socket.room] = {};
             }
@@ -77,18 +429,39 @@ export function setupSocket(io: Server) {
             }
         });
 
+        socket.on("disconnect", async () => {
+            console.log("A user disconnected...", socket.id);
 
-        socket.on("disconnect", () => {
-            console.log("A user disconnected...", socket.id)
+            // Update online status
+            onlineUsers.delete(socket.user.id);
+
+            // Update database - prefer user_id if available
+            const numericUserId = socket.user.user_id ? parseInt(socket.user.user_id) : parseInt(socket.user.id);
+            if (!isNaN(numericUserId)) {
+                try {
+                    // Use updateMany to avoid errors when user doesn't exist
+                    await prisma.user.updateMany({
+                        where: { id: numericUserId },
+                        data: {
+                            is_online: false,
+                            last_seen: new Date(),
+                        },
+                    });
+                } catch (err) {
+                    // Silently ignore - user might be a guest
+                }
+            }
+
             if (activeUsers[socket.room]) {
                 activeUsers[socket.room] = activeUsers[socket.room].filter(
                     (user) => user.id !== socket.user.id
                 );
                 io.to(socket.room).emit("userLeft", socket.user.id);
+                io.to(socket.room).emit("userOffline", { userId: socket.user.id });
                 io.to(socket.room).emit("activeUsers", activeUsers[socket.room]);
             }
-        })
-    })
+        });
+    });
 }
 
 // 🔥 How Partitioning Helps in Kafka Scaling ?

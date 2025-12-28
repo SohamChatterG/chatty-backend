@@ -8,56 +8,170 @@ datasource db {
 }
 
 model User {
-  id         Int         @id @default(autoincrement())
-  name       String      @db.VarChar(191)
-  email      String      @unique @db.VarChar(191)
-  provider   String      @db.VarChar(100)
-  image      String?
-  oauth_id   String
-  created_at DateTime    @default(now())
-  ChatGroup  ChatGroup[]
+  id           Int           @id @default(autoincrement())
+  name         String        @db.VarChar(191)
+  email        String        @unique @db.VarChar(191)
+  provider     String        @db.VarChar(100)
+  image        String?
+  oauth_id     String
+  created_at   DateTime      @default(now())
+  last_seen    DateTime      @default(now()) // For online/offline status
+  is_online    Boolean       @default(false) // Online status
+  ChatGroup    ChatGroup[]
+  GroupUsers   GroupUsers[] // Groups this user belongs to
+  MessageReads MessageRead[] // Messages this user has read
+  JoinRequests JoinRequest[] // Pending join requests
 
   @@map("users")
 }
 
 model ChatGroup {
-  id         String       @id @default(uuid()) @db.Uuid
-  user       User         @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  user_id    Int
-  title      String       @db.VarChar(191)
-  passcode   String?      @db.VarChar(20)
-  created_at DateTime     @default(now())
-  Chats      Chats[]
-  GroupUsers GroupUsers[]
-  is_public  Boolean      @default(false)
+  id                  String               @id @default(uuid()) @db.Uuid
+  user                User                 @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user_id             Int
+  title               String               @db.VarChar(191)
+  passcode            String?              @db.VarChar(20)
+  created_at          DateTime             @default(now())
+  Chats               Chats[]
+  GroupUsers          GroupUsers[]
+  PinnedMessages      PinnedMessage[]
+  JoinRequests        JoinRequest[]
+  is_public           Boolean              @default(false)
+  is_encrypted        Boolean              @default(false) // E2E encryption enabled
+  GroupEncryptionKeys GroupEncryptionKey[]
 
   @@index([user_id, created_at])
   @@map("chat_groups")
 }
 
 model GroupUsers {
-  id       Int       @id @default(autoincrement())
-  group    ChatGroup @relation(fields: [group_id], references: [id], onDelete: Cascade)
-  group_id String    @db.Uuid
-  name     String
-  user_id  Int? // default admin
+  id         Int       @id @default(autoincrement())
+  group      ChatGroup @relation(fields: [group_id], references: [id], onDelete: Cascade)
+  group_id   String    @db.Uuid
+  name       String
+  user       User?     @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  user_id    Int? // linked user id
+  is_admin   Boolean   @default(false)
+  is_owner   Boolean   @default(false) // Group creator
+  is_muted   Boolean   @default(false) // Muted by admin
+  is_banned  Boolean   @default(false) // Banned from group
+  created_at DateTime  @default(now())
 
-  is_admin Boolean @default(false)
-
-  created_at DateTime @default(now())
-
+  @@unique([group_id, user_id]) // One user per group
   @@map("group_users")
 }
 
 model Chats {
-  id         String    @id @default(uuid()) @db.Uuid
-  group      ChatGroup @relation(fields: [group_id], references: [id], onDelete: Cascade)
-  group_id   String    @db.Uuid
-  message    String?
-  name       String
-  file       String?
-  created_at DateTime  @default(now())
+  id                String             @id @default(uuid()) @db.Uuid
+  group             ChatGroup          @relation(fields: [group_id], references: [id], onDelete: Cascade)
+  group_id          String             @db.Uuid
+  message           String?
+  name              String
+  file              String? // Cloudinary URL
+  file_type         String?            @db.VarChar(50) // image, video, document, audio, voice
+  file_size         Int? // in bytes
+  file_public_id    String? // Cloudinary public_id for deletion
+  duration          Int? // Duration for voice/video in seconds
+  is_encrypted      Boolean            @default(false) // E2E encrypted message
+  created_at        DateTime           @default(now())
+  edited_at         DateTime?
+  deleted_at        DateTime?
+  parent_message_id String?            @db.Uuid // For threading/replies
+  forwarded_from    String?            @db.Uuid // Original message ID if forwarded
+  mentions          String[]           @default([]) // Array of mentioned user names
+  MessageReactions  MessageReactions[]
+  MessageReads      MessageRead[] // Read receipts
+  PinnedMessages    PinnedMessage[]
 
   @@index([created_at])
+  @@index([group_id, parent_message_id])
   @@map("chats")
+}
+
+model MessageReactions {
+  id         Int      @id @default(autoincrement())
+  message    Chats    @relation(fields: [message_id], references: [id], onDelete: Cascade)
+  message_id String   @db.Uuid
+  user_name  String   @db.VarChar(191)
+  user_id    Int?
+  emoji      String   @db.VarChar(10)
+  created_at DateTime @default(now())
+
+  @@unique([message_id, user_name, emoji])
+  @@index([message_id])
+  @@map("message_reactions")
+}
+
+model MessageRead {
+  id         Int      @id @default(autoincrement())
+  message    Chats    @relation(fields: [message_id], references: [id], onDelete: Cascade)
+  message_id String   @db.Uuid
+  user       User?    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user_id    Int? // Optional for guest users
+  user_name  String   @db.VarChar(191) // For tracking who read (works for guests too)
+  read_at    DateTime @default(now())
+
+  @@unique([message_id, user_name]) // One read receipt per user per message
+  @@index([message_id])
+  @@index([user_id])
+  @@map("message_reads")
+}
+
+model PinnedMessage {
+  id           Int       @id @default(autoincrement())
+  message      Chats     @relation(fields: [message_id], references: [id], onDelete: Cascade)
+  message_id   String    @db.Uuid
+  group        ChatGroup @relation(fields: [group_id], references: [id], onDelete: Cascade)
+  group_id     String    @db.Uuid
+  pinned_by    String    @db.VarChar(191) // User name who pinned
+  pinned_by_id Int? // Optional user ID
+  pinned_at    DateTime  @default(now())
+
+  @@unique([message_id, group_id]) // One pin per message per group
+  @@index([group_id])
+  @@map("pinned_messages")
+}
+
+// Join requests for public groups (pending approval)
+model JoinRequest {
+  id         Int       @id @default(autoincrement())
+  group      ChatGroup @relation(fields: [group_id], references: [id], onDelete: Cascade)
+  group_id   String    @db.Uuid
+  user       User?     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user_id    Int? // Optional for guest users
+  name       String    @db.VarChar(191) // Requested display name
+  status     String    @default("pending") @db.VarChar(20) // pending, approved, rejected
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+
+  @@unique([group_id, user_id]) // One pending request per user per group
+  @@index([group_id, status])
+  @@map("join_requests")
+}
+
+// E2E Encryption: Store user's public key
+model UserPublicKey {
+  id         Int      @id @default(autoincrement())
+  user_id    Int      @unique
+  public_key String   @db.Text // Base64 encoded public key (ECDH P-256)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("user_public_keys")
+}
+
+// E2E Encryption: Encrypted group symmetric key per user
+model GroupEncryptionKey {
+  id                  Int       @id @default(autoincrement())
+  group               ChatGroup @relation(fields: [group_id], references: [id], onDelete: Cascade)
+  group_id            String    @db.Uuid
+  user_id             Int
+  encrypted_key       String    @db.Text // Group key encrypted with user's public key
+  key_version         Int       @default(1) // For key rotation
+  created_at          DateTime  @default(now())
+  updated_at          DateTime  @updatedAt
+
+  @@unique([group_id, user_id])
+  @@index([group_id])
+  @@map("group_encryption_keys")
 }
