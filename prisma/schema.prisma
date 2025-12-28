@@ -162,14 +162,14 @@ model UserPublicKey {
 
 // E2E Encryption: Encrypted group symmetric key per user
 model GroupEncryptionKey {
-  id                  Int       @id @default(autoincrement())
-  group               ChatGroup @relation(fields: [group_id], references: [id], onDelete: Cascade)
-  group_id            String    @db.Uuid
-  user_id             Int
-  encrypted_key       String    @db.Text // Group key encrypted with user's public key
-  key_version         Int       @default(1) // For key rotation
-  created_at          DateTime  @default(now())
-  updated_at          DateTime  @updatedAt
+  id            Int       @id @default(autoincrement())
+  group         ChatGroup @relation(fields: [group_id], references: [id], onDelete: Cascade)
+  group_id      String    @db.Uuid
+  user_id       Int
+  encrypted_key String    @db.Text // Group key encrypted with user's public key
+  key_version   Int       @default(1) // For key rotation
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
 
   @@unique([group_id, user_id])
   @@index([group_id])
