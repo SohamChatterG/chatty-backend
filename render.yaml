@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: chatty-backend
+    runtime: node
+    region: oregon # You can change this to: ohio, virginia, frankfurt, singapore
+    plan: free # Options: free, starter, standard, pro
+    branch: main
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 8080
+      - key: DATABASE_URL
+        sync: false # Set this manually in Render dashboard
+      - key: REDIS_URL
+        sync: false # Set this manually in Render dashboard
+      - key: JWT_SECRET
+        sync: false # Set this manually in Render dashboard
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false # Optional - for file uploads
+      - key: CLOUDINARY_API_KEY
+        sync: false # Optional - for file uploads
+      - key: CLOUDINARY_API_SECRET
+        sync: false # Optional - for file uploads

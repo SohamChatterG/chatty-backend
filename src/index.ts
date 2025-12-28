@@ -2,7 +2,7 @@ import express, { Application, Request, Response } from "express";
 import "dotenv/config";
 import cors from "cors";
 const app: Application = express();
-const PORT = 8080;
+const PORT = process.env.PORT || 8080;
 import Routes from "./routes/index.js"
 import { Server } from "socket.io"
 import { createServer } from "http"
@@ -14,9 +14,18 @@ import { connectKafkaProducer } from "./config/kafka.config.js";
 import { consumeMessages } from "./helper.js";
 
 const server = createServer(app);
+
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://admin.socket.io",
+  process.env.FRONTEND_URL,
+  "https://chatty-frontend-ymzc-emh9qp0fd-sohams-projects-dab0f95b.vercel.app",
+  "https://chatty-frontend-ymzc.vercel.app"
+].filter(Boolean);
+
 const io = new Server(server, {
   cors: {
-    origin: ["http://localhost:3000", "https://admin.socket.io", "https://chatty-frontend-ymzc-emh9qp0fd-sohams-projects-dab0f95b.vercel.app", "https://chatty-frontend-ymzc.vercel.app"],
+    origin: allowedOrigins,
     credentials: true
   },
   adapter: createAdapter(redis) // **** Read the note at the bottom
@@ -24,13 +33,13 @@ const io = new Server(server, {
 
 instrument(io, {
   auth: false,
-  mode: "development"
+  mode: process.env.NODE_ENV === "production" ? "production" : "development"
 })
 
 // * Middleware
 
 app.use(cors({
-  origin: ['http://localhost:3000'],
+  origin: allowedOrigins,
   credentials: true
 }));
 app.use(express.json());
