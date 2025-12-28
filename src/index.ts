@@ -7,8 +7,8 @@ import Routes from "./routes/index.js"
 import { Server } from "socket.io"
 import { createServer } from "http"
 import { setupSocket } from "./socket.js";
-import { createAdapter } from "@socket.io/redis-streams-adapter";
-import redis from "./config/redis.config.js";
+// import { createAdapter } from "@socket.io/redis-streams-adapter";
+// import redis from "./config/redis.config.js";
 import { instrument } from "@socket.io/admin-ui";
 import { connectKafkaProducer } from "./config/kafka.config.js";
 import { consumeMessages } from "./helper.js";
@@ -28,7 +28,7 @@ const io = new Server(server, {
     origin: allowedOrigins,
     credentials: true
   },
-  adapter: createAdapter(redis) // **** Read the note at the bottom
+  // adapter: createAdapter(redis) // **** Read the note at the bottom
 });
 
 instrument(io, {
