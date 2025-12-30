@@ -7,6 +7,7 @@ import ChatGroupUserController from "../controller/ChatGroupUserController.js";
 import ChatsController from "../controller/ChatsController.js";
 import MessageReactionsController from "../controller/MessageReactionsController.js";
 import JoinRequestController from "../controller/JoinRequestController.js";
+import { getProfile, updateProfile, uploadProfilePicture, removeProfilePicture } from "../controller/ProfileController.js";
 import { upload } from "../config/multer.config.js";
 import encryptionRoutes from "./encryptionRoutes.js";
 
@@ -14,6 +15,12 @@ router.post("/auth/login", AuthController.login);
 
 // Encryption routes
 router.use("/encryption", encryptionRoutes);
+
+// Profile routes
+router.get("/profile", authMiddleware, getProfile);
+router.put("/profile", authMiddleware, updateProfile);
+router.post("/profile/picture", authMiddleware, upload.single("image"), uploadProfilePicture);
+router.delete("/profile/picture", authMiddleware, removeProfilePicture);
 
 // Chat group routes
 router.post("/chat-group", authMiddleware, ChatGroupController.store);

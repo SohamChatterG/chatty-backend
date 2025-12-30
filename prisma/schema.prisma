@@ -13,6 +13,8 @@ model User {
   email        String        @unique @db.VarChar(191)
   provider     String        @db.VarChar(100)
   image        String?
+  profile_image String?      // Custom profile image uploaded by user
+  about        String?       @default("Hey there! I'm using QuickChat") @db.VarChar(500) // About/status like WhatsApp
   oauth_id     String
   created_at   DateTime      @default(now())
   last_seen    DateTime      @default(now()) // For online/offline status

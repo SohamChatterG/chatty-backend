@@ -46,7 +46,20 @@ export function setupSocket(io: Server) {
         if (!activeUsers[socket.room]) {
             activeUsers[socket.room] = [];
         }
-        activeUsers[socket.room].push(socket.user);
+        
+        // Check for duplicates before adding - use user_id if available, otherwise use id
+        const userId = socket.user.user_id || socket.user.id;
+        const existingIndex = activeUsers[socket.room].findIndex(
+            (u) => (u.user_id && u.user_id === userId) || u.id === userId
+        );
+        
+        if (existingIndex === -1) {
+            // User not in list, add them
+            activeUsers[socket.room].push(socket.user);
+        } else {
+            // User already exists, update their info (in case name changed)
+            activeUsers[socket.room][existingIndex] = socket.user;
+        }
 
         // Track online status
         onlineUsers.set(socket.user.id, { socketId: socket.id, name: socket.user.name });
@@ -453,11 +466,16 @@ export function setupSocket(io: Server) {
             }
 
             if (activeUsers[socket.room]) {
+                // Remove user by checking both user_id and id
+                const userId = socket.user.user_id || socket.user.id;
                 activeUsers[socket.room] = activeUsers[socket.room].filter(
-                    (user) => user.id !== socket.user.id
+                    (user) => {
+                        const userIdentifier = user.user_id || user.id;
+                        return userIdentifier !== userId;
+                    }
                 );
-                io.to(socket.room).emit("userLeft", socket.user.id);
-                io.to(socket.room).emit("userOffline", { userId: socket.user.id });
+                io.to(socket.room).emit("userLeft", userId);
+                io.to(socket.room).emit("userOffline", { userId });
                 io.to(socket.room).emit("activeUsers", activeUsers[socket.room]);
             }
         });
