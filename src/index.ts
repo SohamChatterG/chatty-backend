@@ -20,7 +20,8 @@ const allowedOrigins = [
   "https://admin.socket.io",
   process.env.FRONTEND_URL,
   "https://chatty-frontend-ymzc-emh9qp0fd-sohams-projects-dab0f95b.vercel.app",
-  "https://chatty-frontend-ymzc.vercel.app"
+  "https://chatty-frontend-ymzc.vercel.app",
+  "https://quick-chatty.netlify.app"
 ].filter(Boolean);
 
 const io = new Server(server, {
