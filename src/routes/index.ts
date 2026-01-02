@@ -65,7 +65,7 @@ router.post("/chats/forward", authMiddleware, ChatsController.forwardMessage);
 // Message pinning
 router.post("/chats/pin", authMiddleware, ChatsController.pinMessage);
 router.post("/chats/unpin", authMiddleware, ChatsController.unpinMessage);
-router.get("/chats/:groupId/pinned", ChatsController.getPinnedMessages);
+router.get("/chats/pinned/:groupId", ChatsController.getPinnedMessages);
 
 // Message reactions
 router.post("/reactions", MessageReactionsController.addReaction);
