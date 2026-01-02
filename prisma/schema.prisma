@@ -8,21 +8,21 @@ datasource db {
 }
 
 model User {
-  id           Int           @id @default(autoincrement())
-  name         String        @db.VarChar(191)
-  email        String        @unique @db.VarChar(191)
-  provider     String        @db.VarChar(100)
-  image        String?
-  profile_image String?      // Custom profile image uploaded by user
-  about        String?       @default("Hey there! I'm using QuickChat") @db.VarChar(500) // About/status like WhatsApp
-  oauth_id     String
-  created_at   DateTime      @default(now())
-  last_seen    DateTime      @default(now()) // For online/offline status
-  is_online    Boolean       @default(false) // Online status
-  ChatGroup    ChatGroup[]
-  GroupUsers   GroupUsers[] // Groups this user belongs to
-  MessageReads MessageRead[] // Messages this user has read
-  JoinRequests JoinRequest[] // Pending join requests
+  id            Int           @id @default(autoincrement())
+  name          String        @db.VarChar(191)
+  email         String        @unique @db.VarChar(191)
+  provider      String        @db.VarChar(100)
+  image         String?
+  profile_image String? // Custom profile image uploaded by user
+  about         String?       @default("Hey there! I'm using QuickChat") @db.VarChar(500) // About/status like WhatsApp
+  oauth_id      String
+  created_at    DateTime      @default(now())
+  last_seen     DateTime      @default(now()) // For online/offline status
+  is_online     Boolean       @default(false) // Online status
+  ChatGroup     ChatGroup[]
+  GroupUsers    GroupUsers[] // Groups this user belongs to
+  MessageReads  MessageRead[] // Messages this user has read
+  JoinRequests  JoinRequest[] // Pending join requests
 
   @@map("users")
 }

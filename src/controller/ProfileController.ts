@@ -120,7 +120,7 @@ export async function uploadProfilePicture(req: MulterRequest, res: Response) {
                 const filename = filenameWithExt.split('.')[0];
                 const folder = urlParts[urlParts.length - 2];
                 const publicId = `${folder}/${filename}`;
-                
+
                 await cloudinary.uploader.destroy(publicId);
             } catch (deleteError) {
                 console.error("Error deleting old profile image:", deleteError);
@@ -191,7 +191,7 @@ export async function removeProfilePicture(req: Request, res: Response) {
                 const filename = filenameWithExt.split('.')[0];
                 const folder = urlParts[urlParts.length - 2];
                 const publicId = `${folder}/${filename}`;
-                
+
                 await cloudinary.uploader.destroy(publicId);
             } catch (deleteError) {
                 console.error("Error deleting profile image:", deleteError);

@@ -46,13 +46,13 @@ export function setupSocket(io: Server) {
         if (!activeUsers[socket.room]) {
             activeUsers[socket.room] = [];
         }
-        
+
         // Check for duplicates before adding - use user_id if available, otherwise use id
         const userId = socket.user.user_id || socket.user.id;
         const existingIndex = activeUsers[socket.room].findIndex(
             (u) => (u.user_id && u.user_id === userId) || u.id === userId
         );
-        
+
         if (existingIndex === -1) {
             // User not in list, add them
             activeUsers[socket.room].push(socket.user);
